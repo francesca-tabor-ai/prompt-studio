@@ -3,6 +3,7 @@ export { apiClient } from './client';
 export { ApiErrorHandler, ValidationError, NotFoundError, UnauthorizedError, AuthenticationError } from './errorHandler';
 export { PromptValidator } from './validators';
 export { versionControlApi } from './versionControlApi';
+export { searchApi } from './searchApi';
 
 export type {
   ApiResponse,
@@ -26,3 +27,9 @@ export type {
   CreateBranchRequest,
   CreateVersionRequest,
 } from './versionControlApi';
+
+export type {
+  SavedSearch,
+  CreateSavedSearchRequest,
+  SearchResponse,
+} from './searchApi';

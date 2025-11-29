@@ -1,5 +1,6 @@
-import { Search, Sparkles, X } from 'lucide-react';
+import { Search, Sparkles, X, Star } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
+import { searchApi } from '../api/searchApi';
 
 interface AISearchBarProps {
   onSearch: (query: string) => void;
@@ -8,7 +9,7 @@ interface AISearchBarProps {
 export default function AISearchBar({ onSearch }: AISearchBarProps) {
   const [query, setQuery] = useState('');
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [popularSearches, setPopularSearches] = useState<Array<{ query: string; count: number }>>([]);
   const searchRef = useRef<HTMLDivElement>(null);
 
   const aiSuggestions = [
@@ -23,6 +24,10 @@ export default function AISearchBar({ onSearch }: AISearchBarProps) {
   ];
 
   useEffect(() => {
+    loadPopularSearches();
+  }, []);
+
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
@@ -33,18 +38,24 @@ export default function AISearchBar({ onSearch }: AISearchBarProps) {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  useEffect(() => {
+  const loadPopularSearches = async () => {
+    try {
+      const response = await searchApi.getPopularSearches(5);
+      setPopularSearches(response.data);
+    } catch (error) {
+      console.error('Failed to load popular searches:', error);
+    }
+  };
+
+  const getSuggestions = () => {
     if (query.length > 2) {
       const filtered = aiSuggestions.filter((s) =>
         s.toLowerCase().includes(query.toLowerCase())
       );
-      setSuggestions(filtered.slice(0, 5));
-      setShowSuggestions(true);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
+      return filtered.slice(0, 5);
     }
-  }, [query]);
+    return popularSearches.map(s => s.query);
+  };
 
   const handleSearch = (searchQuery: string) => {
     setQuery(searchQuery);
@@ -58,6 +69,8 @@ export default function AISearchBar({ onSearch }: AISearchBarProps) {
     setShowSuggestions(false);
   };
 
+  const suggestions = getSuggestions();
+
   return (
     <div ref={searchRef} className="relative flex-1 max-w-3xl">
       <div className="relative">
@@ -67,7 +80,7 @@ export default function AISearchBar({ onSearch }: AISearchBarProps) {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => query.length > 2 && setShowSuggestions(true)}
+          onFocus={() => setShowSuggestions(true)}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch(query)}
           placeholder="Search prompts with AI-powered suggestions..."
           className="w-full pl-20 pr-12 py-3.5 bg-white border-2 border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-light-sea-green focus:border-transparent transition-all duration-200 text-sm font-medium"
@@ -86,8 +99,17 @@ export default function AISearchBar({ onSearch }: AISearchBarProps) {
         <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="p-3 border-b border-gray-100 bg-gradient-to-r from-light-sea-green/5 to-green-yellow/5">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-jungle-green" />
-              <span className="text-xs font-semibold text-gray-700">AI-Powered Suggestions</span>
+              {query.length > 2 ? (
+                <>
+                  <Sparkles className="w-4 h-4 text-jungle-green" />
+                  <span className="text-xs font-semibold text-gray-700">AI-Powered Suggestions</span>
+                </>
+              ) : (
+                <>
+                  <Star className="w-4 h-4 text-jungle-green" />
+                  <span className="text-xs font-semibold text-gray-700">Popular Searches</span>
+                </>
+              )}
             </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
