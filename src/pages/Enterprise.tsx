@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, Loader } from 'lucide-react';
-import DataUploadPanel from '../components/DataUploadPanel';
+import DataIngestionPanel from '../components/DataIngestionPanel';
 import OrganizationalTable from '../components/OrganizationalTable';
 import TaskManager from '../components/TaskManager';
 import PromptPreviewPanel from '../components/PromptPreviewPanel';
@@ -220,7 +220,7 @@ When responding to queries about this task, focus on practical solutions that he
 
       <main className="p-8">
         <div className="space-y-8">
-          <DataUploadPanel onDataParsed={handleDataParsed} />
+          <DataIngestionPanel />
 
           <OrganizationalTable data={orgSummary} onGenerateTasks={handleGenerateTasks} />
 
