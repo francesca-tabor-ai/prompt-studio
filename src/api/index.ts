@@ -2,6 +2,7 @@ export { promptsApi } from './promptsApi';
 export { apiClient } from './client';
 export { ApiErrorHandler, ValidationError, NotFoundError, UnauthorizedError, AuthenticationError } from './errorHandler';
 export { PromptValidator } from './validators';
+export { versionControlApi } from './versionControlApi';
 
 export type {
   ApiResponse,
@@ -17,3 +18,11 @@ export type {
   UpdatePromptRequest,
   RevertPromptRequest,
 } from './types';
+
+export type {
+  PromptBranch,
+  VersionMetadata,
+  VersionComparison,
+  CreateBranchRequest,
+  CreateVersionRequest,
+} from './versionControlApi';
