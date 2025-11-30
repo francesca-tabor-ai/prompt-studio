@@ -205,7 +205,7 @@ export const authService = {
     try {
       const { data, error } = await supabase
         .from('user_roles')
-        .select('role_id, roles(*)')
+        .select('roles(id, name, description, created_at)')
         .eq('user_id', userId);
 
       if (error) {
@@ -222,14 +222,20 @@ export const authService = {
 
   async getUserPermissions(userId: string): Promise<string[]> {
     try {
-      const roles = await this.getUserRoles(userId);
-      const roleIds = roles.map((r) => r.id);
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('role_id')
+        .eq('user_id', userId);
 
-      if (roleIds.length === 0) return [];
+      if (roleError || !roleData || roleData.length === 0) {
+        return [];
+      }
+
+      const roleIds = roleData.map((r) => r.role_id);
 
       const { data, error } = await supabase
         .from('role_permissions')
-        .select('permission_id, permissions(*)')
+        .select('permissions(name)')
         .in('role_id', roleIds);
 
       if (error) {

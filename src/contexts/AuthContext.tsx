@@ -47,10 +47,14 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const loadUserData = async (user: User) => {
     try {
+      const profilePromise = authService.getUserProfile(user.id).catch(() => null);
+      const rolesPromise = authService.getUserRoles(user.id).catch(() => []);
+      const permissionsPromise = authService.getUserPermissions(user.id).catch(() => []);
+
       const [profile, roles, permissions] = await Promise.all([
-        authService.getUserProfile(user.id),
-        authService.getUserRoles(user.id),
-        authService.getUserPermissions(user.id),
+        profilePromise,
+        rolesPromise,
+        permissionsPromise,
       ]);
 
       return { profile, roles, permissions };
@@ -66,15 +70,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const initializeAuth = async () => {
     try {
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth initialization timeout')), 10000)
-      );
-
-      const authPromise = supabase.auth.getSession();
-
-      const { data: { session } } = await Promise.race([authPromise, timeoutPromise]) as any;
+      const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
+        setAuthState((prev) => ({
+          ...prev,
+          user: session.user,
+          session,
+          isLoading: true,
+          isAuthenticated: true,
+        }));
+
         const { profile, roles, permissions } = await loadUserData(session.user);
 
         setAuthState({
