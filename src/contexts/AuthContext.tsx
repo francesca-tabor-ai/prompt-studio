@@ -66,7 +66,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const initializeAuth = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
+      );
+
+      const authPromise = supabase.auth.getSession();
+
+      const { data: { session } } = await Promise.race([authPromise, timeoutPromise]) as any;
 
       if (session?.user) {
         const { profile, roles, permissions } = await loadUserData(session.user);
