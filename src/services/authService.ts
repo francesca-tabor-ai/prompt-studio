@@ -112,25 +112,23 @@ export const authService = {
       });
 
       if (error) {
-        await this.recordFailedLogin(credentials.email);
-        await this.logAuditEvent({
+        this.recordFailedLogin(credentials.email).catch(console.error);
+        this.logAuditEvent({
           email: credentials.email,
           event_type: 'login_failed',
           metadata: { reason: error.message },
-        });
+        }).catch(console.error);
         throw error;
       }
 
-      await this.clearLoginAttempts(credentials.email);
-
-      await this.createSession(data.user.id, data.session);
-
-      await this.logAuditEvent({
+      this.clearLoginAttempts(credentials.email).catch(console.error);
+      this.createSession(data.user.id, data.session).catch(console.error);
+      this.logAuditEvent({
         user_id: data.user.id,
         email: credentials.email,
         event_type: 'login',
         metadata: { success: true },
-      });
+      }).catch(console.error);
 
       return { session: data.session, error: null };
     } catch (error) {
