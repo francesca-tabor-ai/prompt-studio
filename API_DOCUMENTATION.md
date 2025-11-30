@@ -1,12 +1,34 @@
-# Prompt Management API Documentation
+# Prompt Library Platform - Comprehensive API Documentation
+
+**Version:** 2.0.0
+**Last Updated:** 2024-01-15
+**Base URL:** `https://your-supabase-project.supabase.co`
 
 ## Overview
 
-This document describes the comprehensive RESTful API endpoints for prompt management in the Prompt Studio application. All endpoints are implemented as client-side services that interact with Supabase backend.
+This document provides complete OpenAPI/Swagger specifications for all platform endpoints. The API follows RESTful principles and uses Supabase as the backend infrastructure.
+
+## Table of Contents
+
+1. [Authentication](#authentication)
+2. [Authorization](#authorization)
+3. [Core APIs](#core-apis)
+4. [Error Handling](#error-handling)
+5. [Rate Limiting](#rate-limiting)
+6. [Pagination & Filtering](#pagination--filtering)
+7. [WebSocket Endpoints](#websocket-endpoints)
+8. [File Operations](#file-operations)
+9. [OpenAPI Specification](#openapi-specification)
+
+---
 
 ## Base URL
 
-All API calls are handled through the client-side service layer that communicates with Supabase.
+All API calls are handled through the client-side service layer that communicates with Supabase:
+- **REST API:** `https://your-project.supabase.co/rest/v1`
+- **Auth API:** `https://your-project.supabase.co/auth/v1`
+- **Storage API:** `https://your-project.supabase.co/storage/v1`
+- **Realtime:** `wss://your-project.supabase.co/realtime/v1`
 
 ## Authentication
 
@@ -551,17 +573,746 @@ All API operations automatically log:
 
 ---
 
-## Future Enhancements
+---
 
-Potential API improvements:
+## Rate Limiting
 
-1. **Batch Operations**: Create/update/delete multiple prompts
-2. **Bulk Import/Export**: Import/export prompts in various formats
-3. **Advanced Search**: Full-text search with ranking
-4. **Prompt Duplication**: Clone existing prompts
-5. **Prompt Templates**: Manage reusable templates
-6. **Collaboration**: Share and collaborate on prompts
-7. **Approval Workflows**: Multi-stage approval process
-8. **Version Comparison**: Diff between versions
-9. **GraphQL Support**: Alternative API interface
-10. **Webhooks**: Real-time notifications for events
+### Rate Limits by Endpoint Type
+
+All endpoints are subject to rate limiting to ensure fair usage:
+
+| Endpoint Type | Limit | Window | Header |
+|--------------|-------|--------|--------|
+| Authentication | 10 requests | 1 minute | `X-RateLimit-Auth` |
+| Read Operations (GET) | 100 requests | 1 minute | `X-RateLimit-Read` |
+| Write Operations (POST/PUT/PATCH) | 50 requests | 1 minute | `X-RateLimit-Write` |
+| Delete Operations | 20 requests | 1 minute | `X-RateLimit-Delete` |
+| Search Queries | 30 requests | 1 minute | `X-RateLimit-Search` |
+| Analytics | 20 requests | 1 minute | `X-RateLimit-Analytics` |
+| File Upload | 10 requests | 1 minute | `X-RateLimit-Upload` |
+
+### Rate Limit Headers
+
+Every response includes rate limit information:
+
+```http
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 87
+X-RateLimit-Reset: 1642246320
+X-RateLimit-Type: read
+```
+
+### Rate Limit Exceeded Response
+
+**HTTP 429 Too Many Requests:**
+```json
+{
+  "error": "RATE_LIMIT_EXCEEDED",
+  "message": "Rate limit exceeded. Please retry after 60 seconds.",
+  "statusCode": 429,
+  "details": {
+    "limit": 100,
+    "remaining": 0,
+    "reset": 1642246320,
+    "retry_after": 60
+  }
+}
+```
+
+### Best Practices
+
+1. **Monitor Headers:** Check rate limit headers in responses
+2. **Implement Backoff:** Use exponential backoff for retries
+3. **Cache Data:** Cache frequently accessed data client-side
+4. **Batch Requests:** Combine multiple operations when possible
+5. **Use Webhooks:** Subscribe to real-time updates instead of polling
+
+---
+
+## Pagination & Filtering
+
+### Range-Based Pagination (Supabase Default)
+
+```http
+GET /rest/v1/prompt_submissions
+Range: 0-19
+```
+
+**Response Headers:**
+```http
+Content-Range: 0-19/100
+```
+
+### Query Parameter Pagination
+
+```typescript
+// Using limit and offset
+const { data, count } = await supabase
+  .from('prompt_submissions')
+  .select('*', { count: 'exact' })
+  .range(0, 19);
+
+// Pagination metadata
+{
+  page: 1,
+  per_page: 20,
+  total: 100,
+  total_pages: 5,
+  has_next: true,
+  has_prev: false
+}
+```
+
+### Filtering Operators
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `eq` | Equal | `?status=eq.approved` |
+| `neq` | Not equal | `?status=neq.archived` |
+| `gt` | Greater than | `?rating=gt.4` |
+| `gte` | Greater than or equal | `?rating=gte.4` |
+| `lt` | Less than | `?created_at=lt.2024-01-01` |
+| `lte` | Less than or equal | `?created_at=lte.2024-12-31` |
+| `like` | Pattern match | `?title=like.*customer*` |
+| `ilike` | Case-insensitive pattern | `?title=ilike.*Customer*` |
+| `in` | In list | `?status=in.(approved,published)` |
+| `is` | Is null/not null | `?deleted_at=is.null` |
+
+### Complex Filtering
+
+```http
+GET /rest/v1/prompt_submissions?or=(status.eq.approved,status.eq.published)&rating=gte.4&category=eq.customer_service
+```
+
+### Sorting
+
+```http
+GET /rest/v1/prompt_submissions?order=rating.desc,created_at.desc
+```
+
+### Full-Text Search
+
+```http
+GET /rest/v1/prompt_submissions?prompt_text=wfts.customer service template
+```
+
+---
+
+## WebSocket Endpoints (Realtime)
+
+### Overview
+
+Supabase Realtime provides WebSocket connections for real-time updates.
+
+### Connection
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
+  }
+});
+```
+
+### Notifications Channel
+
+Subscribe to user-specific notifications:
+
+```typescript
+const notificationsChannel = supabase
+  .channel('user-notifications')
+  .on(
+    'postgres_changes',
+    {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'notifications',
+      filter: `user_id=eq.${userId}`
+    },
+    (payload) => {
+      console.log('New notification:', payload.new);
+      // payload.new contains the notification object
+    }
+  )
+  .subscribe();
+```
+
+**Notification Payload:**
+```json
+{
+  "schema": "public",
+  "table": "notifications",
+  "commit_timestamp": "2024-01-15T14:30:00.000Z",
+  "eventType": "INSERT",
+  "new": {
+    "id": "uuid",
+    "user_id": "user-uuid",
+    "type": "review_assigned",
+    "title": "New Review Assignment",
+    "message": "You have been assigned to review a prompt",
+    "data": {
+      "submission_id": "prompt-uuid",
+      "submitter_name": "John Doe"
+    },
+    "read": false,
+    "created_at": "2024-01-15T14:30:00.000Z"
+  }
+}
+```
+
+### Prompt Updates Channel
+
+Real-time updates when prompts change:
+
+```typescript
+const promptsChannel = supabase
+  .channel('prompt-updates')
+  .on(
+    'postgres_changes',
+    {
+      event: '*',  // INSERT, UPDATE, DELETE
+      schema: 'public',
+      table: 'prompt_submissions'
+    },
+    (payload) => {
+      switch(payload.eventType) {
+        case 'INSERT':
+          console.log('New prompt:', payload.new);
+          break;
+        case 'UPDATE':
+          console.log('Updated prompt:', payload.new);
+          console.log('Old values:', payload.old);
+          break;
+        case 'DELETE':
+          console.log('Deleted prompt:', payload.old);
+          break;
+      }
+    }
+  )
+  .subscribe();
+```
+
+### Live Metrics Channel
+
+Real-time analytics and metrics:
+
+```typescript
+const metricsChannel = supabase
+  .channel('live-metrics')
+  .on('broadcast', { event: 'metrics-update' }, (payload) => {
+    console.log('Metrics updated:', payload);
+  })
+  .subscribe();
+
+// Send metrics update
+metricsChannel.send({
+  type: 'broadcast',
+  event: 'metrics-update',
+  payload: {
+    total_prompts: 1547,
+    active_users: 234,
+    reviews_pending: 45
+  }
+});
+```
+
+### Presence (Online Users)
+
+Track which users are currently online:
+
+```typescript
+const presenceChannel = supabase.channel('online-users', {
+  config: {
+    presence: {
+      key: userId
+    }
+  }
+});
+
+// Subscribe and track
+presenceChannel
+  .on('presence', { event: 'sync' }, () => {
+    const state = presenceChannel.presenceState();
+    console.log('Online users:', Object.keys(state));
+  })
+  .on('presence', { event: 'join' }, ({ key, newPresences }) => {
+    console.log('User joined:', key);
+  })
+  .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
+    console.log('User left:', key);
+  })
+  .subscribe(async (status) => {
+    if (status === 'SUBSCRIBED') {
+      await presenceChannel.track({
+        user_id: userId,
+        email: userEmail,
+        online_at: new Date().toISOString()
+      });
+    }
+  });
+```
+
+### Unsubscribing
+
+```typescript
+// Unsubscribe from channel
+channel.unsubscribe();
+
+// Remove all channels
+supabase.removeAllChannels();
+```
+
+---
+
+## File Operations
+
+### Upload File
+
+```http
+POST /storage/v1/object/{bucket}/{path}
+Authorization: Bearer {token}
+Content-Type: multipart/form-data
+```
+
+**Example:**
+```typescript
+const file = event.target.files[0];
+
+// Upload file
+const { data, error } = await supabase.storage
+  .from('prompt-attachments')
+  .upload(`${userId}/${Date.now()}-${file.name}`, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: file.type
+  });
+
+// Response
+{
+  "path": "user-uuid/1642246320-document.pdf",
+  "id": "uuid",
+  "fullPath": "prompt-attachments/user-uuid/1642246320-document.pdf"
+}
+```
+
+**File Constraints:**
+- Maximum file size: 50 MB
+- Allowed types: `.pdf`, `.docx`, `.txt`, `.md`, `.json`, `.csv`, `.xlsx`
+- Filename pattern: `[user-id]/[timestamp]-[filename]`
+
+### Download File
+
+```http
+GET /storage/v1/object/{bucket}/{path}
+```
+
+**Example:**
+```typescript
+// Download file
+const { data, error } = await supabase.storage
+  .from('prompt-attachments')
+  .download('user-uuid/document.pdf');
+
+// Get public URL
+const { data: { publicUrl } } = supabase.storage
+  .from('prompt-attachments')
+  .getPublicUrl('user-uuid/document.pdf');
+```
+
+### List Files
+
+```typescript
+const { data, error } = await supabase.storage
+  .from('prompt-attachments')
+  .list('user-uuid', {
+    limit: 100,
+    offset: 0,
+    sortBy: { column: 'created_at', order: 'desc' }
+  });
+```
+
+### Delete File
+
+```typescript
+const { data, error } = await supabase.storage
+  .from('prompt-attachments')
+  .remove(['user-uuid/document.pdf']);
+```
+
+---
+
+## OpenAPI Specification
+
+### OpenAPI 3.0 Schema
+
+```yaml
+openapi: 3.0.0
+info:
+  title: Prompt Library Platform API
+  version: 2.0.0
+  description: Comprehensive API for managing prompts, reviews, and governance
+  contact:
+    email: api-support@promptlibrary.com
+
+servers:
+  - url: https://your-project.supabase.co
+    description: Production server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Prompt:
+      type: object
+      required:
+        - title
+        - content
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 3
+          maxLength: 500
+        description:
+          type: string
+        content:
+          type: string
+          minLength: 10
+        category:
+          type: string
+          enum: [customer_service, content_generation, data_analysis, general]
+        tags:
+          type: array
+          items:
+            type: string
+            minLength: 2
+            maxLength: 50
+        status:
+          type: string
+          enum: [draft, pending_review, approved, rejected, published, archived]
+        visibility:
+          type: string
+          enum: [private, team, department, public]
+        created_at:
+          type: string
+          format: date-time
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        statusCode:
+          type: integer
+        details:
+          type: object
+
+security:
+  - BearerAuth: []
+
+paths:
+  /rest/v1/prompt_submissions:
+    get:
+      summary: List prompts
+      tags:
+        - Prompts
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: order
+          in: query
+          schema:
+            type: string
+            default: created_at.desc
+      responses:
+        '200':
+          description: Successful response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Prompt'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    post:
+      summary: Create prompt
+      tags:
+        - Prompts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Prompt'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Prompt'
+        '400':
+          description: Bad request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+```
+
+---
+
+## Code Examples
+
+### TypeScript/React
+
+```typescript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.VITE_SUPABASE_URL!,
+  process.env.VITE_SUPABASE_ANON_KEY!
+);
+
+// Authenticated request helper
+async function apiRequest<T>(
+  fn: () => Promise<{ data: T | null; error: any }>
+): Promise<T> {
+  const { data, error } = await fn();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error('No data returned');
+  return data;
+}
+
+// Create prompt
+const createPrompt = async (promptData: any) => {
+  return apiRequest(() =>
+    supabase
+      .from('prompt_submissions')
+      .insert(promptData)
+      .select()
+      .single()
+  );
+};
+
+// List prompts with pagination
+const listPrompts = async (page: number = 1, perPage: number = 20) => {
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+
+  const { data, error, count } = await supabase
+    .from('prompt_submissions')
+    .select('*', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(from, to);
+
+  if (error) throw error;
+
+  return {
+    data,
+    pagination: {
+      page,
+      per_page: perPage,
+      total: count || 0,
+      total_pages: Math.ceil((count || 0) / perPage),
+      has_next: to < (count || 0) - 1,
+      has_prev: page > 1
+    }
+  };
+};
+
+// Real-time subscription
+const subscribeToPrompts = (callback: (prompt: any) => void) => {
+  const channel = supabase
+    .channel('prompt-changes')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',
+        schema: 'public',
+        table: 'prompt_submissions'
+      },
+      (payload) => callback(payload.new)
+    )
+    .subscribe();
+
+  return () => channel.unsubscribe();
+};
+```
+
+### cURL Examples
+
+```bash
+# Get prompts
+curl -X GET 'https://your-project.supabase.co/rest/v1/prompt_submissions?select=*&limit=10' \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "apikey: YOUR_ANON_KEY"
+
+# Create prompt
+curl -X POST 'https://your-project.supabase.co/rest/v1/prompt_submissions' \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -H "Prefer: return=representation" \
+  -d '{
+    "title": "Example Prompt",
+    "content": "Prompt content",
+    "category": "general"
+  }'
+
+# Update prompt
+curl -X PATCH 'https://your-project.supabase.co/rest/v1/prompt_submissions?id=eq.UUID' \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "apikey: YOUR_ANON_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "published"}'
+
+# Delete prompt
+curl -X DELETE 'https://your-project.supabase.co/rest/v1/prompt_submissions?id=eq.UUID' \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "apikey: YOUR_ANON_KEY"
+```
+
+---
+
+## Postman Collection
+
+Import this collection to test all endpoints:
+
+```json
+{
+  "info": {
+    "name": "Prompt Library API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://your-project.supabase.co"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "anon_key",
+      "value": ""
+    }
+  ]
+}
+```
+
+---
+
+## Testing & Validation
+
+### API Testing Checklist
+
+- [ ] Authentication flows (signup, login, logout, refresh)
+- [ ] CRUD operations for all resources
+- [ ] Pagination on list endpoints
+- [ ] Filtering and sorting
+- [ ] Error handling for invalid inputs
+- [ ] Rate limiting behavior
+- [ ] Real-time subscriptions
+- [ ] File upload/download
+- [ ] Permission checks
+- [ ] Audit trail logging
+
+### Sample Test Cases
+
+```typescript
+describe('Prompts API', () => {
+  it('should create a prompt', async () => {
+    const prompt = await createPrompt({
+      title: 'Test Prompt',
+      content: 'Test content'
+    });
+    expect(prompt.id).toBeDefined();
+  });
+
+  it('should enforce rate limits', async () => {
+    // Make 101 requests
+    const requests = Array(101).fill(null).map(() => listPrompts());
+
+    await expect(Promise.all(requests)).rejects.toThrow('Rate limit exceeded');
+  });
+
+  it('should filter by status', async () => {
+    const prompts = await listPrompts(1, 20, { status: 'approved' });
+    expect(prompts.data.every(p => p.status === 'approved')).toBe(true);
+  });
+});
+```
+
+---
+
+## Changelog
+
+### Version 2.0.0 (2024-01-15)
+- Added comprehensive OpenAPI specification
+- Documented rate limiting policies
+- Added WebSocket endpoints documentation
+- Enhanced file operations section
+- Added code examples and Postman collection
+
+### Version 1.0.0 (2024-01-01)
+- Initial API documentation
+- Core CRUD endpoints
+- Basic authentication
+
+---
+
+## Support & Resources
+
+- **API Documentation:** https://docs.promptlibrary.com
+- **Status Page:** https://status.promptlibrary.com
+- **Support Email:** api-support@promptlibrary.com
+- **GitHub:** https://github.com/your-org/prompt-library
+- **Discord:** https://discord.gg/prompt-library
+
+---
+
+## License
+
+API access is subject to the Terms of Service at https://promptlibrary.com/terms
