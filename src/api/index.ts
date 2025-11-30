@@ -4,6 +4,7 @@ export { ApiErrorHandler, ValidationError, NotFoundError, UnauthorizedError, Aut
 export { PromptValidator } from './validators';
 export { versionControlApi } from './versionControlApi';
 export { searchApi } from './searchApi';
+export { tagsApi } from './tagsApi';
 
 export type {
   ApiResponse,
@@ -33,3 +34,8 @@ export type {
   CreateSavedSearchRequest,
   SearchResponse,
 } from './searchApi';
+
+export type {
+  CreateTagRequest,
+  AssignTagRequest,
+} from './tagsApi';
