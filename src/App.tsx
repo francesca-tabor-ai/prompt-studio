@@ -7,6 +7,7 @@ import Enterprise from './pages/Enterprise';
 import Collaborate from './pages/Collaborate';
 import Admin from './pages/Admin';
 import Auth from './pages/Auth';
+import { PeerReviewDashboard } from './pages/PeerReviewDashboard';
 import Navigation, { PageType } from './components/Navigation';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -72,6 +73,12 @@ function AppContent() {
         return (
           <ProtectedRoute requiredPermission="roles.manage">
             <Admin />
+          </ProtectedRoute>
+        );
+      case 'peer-review':
+        return (
+          <ProtectedRoute requiredPermission="collaborate.submit">
+            <PeerReviewDashboard />
           </ProtectedRoute>
         );
       default:

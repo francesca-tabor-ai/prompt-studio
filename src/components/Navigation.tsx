@@ -1,7 +1,7 @@
-import { LayoutDashboard, Library, Sparkles, FlaskConical, Building2, Users, Shield, LogOut } from 'lucide-react';
+import { LayoutDashboard, Library, Sparkles, FlaskConical, Building2, Users, Shield, LogOut, FileCheck } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
-export type PageType = 'dashboard' | 'library' | 'generator' | 'sandbox' | 'enterprise' | 'collaborate' | 'admin';
+export type PageType = 'dashboard' | 'library' | 'generator' | 'sandbox' | 'enterprise' | 'collaborate' | 'admin' | 'peer-review';
 
 interface NavigationProps {
   currentPage: PageType;
@@ -52,6 +52,13 @@ export default function Navigation({ currentPage, onNavigate }: NavigationProps)
       label: 'Collaborate',
       icon: Users,
       description: 'Peer Review',
+      permission: 'collaborate.submit',
+    },
+    {
+      id: 'peer-review' as PageType,
+      label: 'Peer Review',
+      icon: FileCheck,
+      description: 'Review Workflow',
       permission: 'collaborate.submit',
     },
     {
