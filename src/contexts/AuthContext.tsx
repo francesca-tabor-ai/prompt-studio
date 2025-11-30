@@ -46,13 +46,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   });
 
   const loadUserData = async (user: User) => {
-    const [profile, roles, permissions] = await Promise.all([
-      authService.getUserProfile(user.id),
-      authService.getUserRoles(user.id),
-      authService.getUserPermissions(user.id),
-    ]);
+    try {
+      const [profile, roles, permissions] = await Promise.all([
+        authService.getUserProfile(user.id),
+        authService.getUserRoles(user.id),
+        authService.getUserPermissions(user.id),
+      ]);
 
-    return { profile, roles, permissions };
+      return { profile, roles, permissions };
+    } catch (error) {
+      console.error('Error loading user data:', error);
+      return {
+        profile: null,
+        roles: [],
+        permissions: [],
+      };
+    }
   };
 
   const initializeAuth = async () => {

@@ -167,18 +167,23 @@ export const authService = {
   },
 
   async getUserProfile(userId: string): Promise<UserProfile | null> {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('*')
-      .eq('id', userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-    if (error) {
-      console.error('Error fetching user profile:', error);
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        return null;
+      }
+
+      return data;
+    } catch (error) {
+      console.error('Exception fetching user profile:', error);
       return null;
     }
-
-    return data;
   },
 
   async updateProfile(userId: string, updates: Partial<UserProfile>): Promise<{ error: Error | null }> {
@@ -197,40 +202,50 @@ export const authService = {
   },
 
   async getUserRoles(userId: string): Promise<Role[]> {
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role_id, roles(*)')
-      .eq('user_id', userId);
+    try {
+      const { data, error } = await supabase
+        .from('user_roles')
+        .select('role_id, roles(*)')
+        .eq('user_id', userId);
 
-    if (error) {
-      console.error('Error fetching user roles:', error);
+      if (error) {
+        console.error('Error fetching user roles:', error);
+        return [];
+      }
+
+      return data?.map((ur: any) => ur.roles).filter(Boolean) || [];
+    } catch (error) {
+      console.error('Exception fetching user roles:', error);
       return [];
     }
-
-    return data.map((ur: any) => ur.roles).filter(Boolean);
   },
 
   async getUserPermissions(userId: string): Promise<string[]> {
-    const roles = await this.getUserRoles(userId);
-    const roleIds = roles.map((r) => r.id);
+    try {
+      const roles = await this.getUserRoles(userId);
+      const roleIds = roles.map((r) => r.id);
 
-    if (roleIds.length === 0) return [];
+      if (roleIds.length === 0) return [];
 
-    const { data, error } = await supabase
-      .from('role_permissions')
-      .select('permission_id, permissions(*)')
-      .in('role_id', roleIds);
+      const { data, error } = await supabase
+        .from('role_permissions')
+        .select('permission_id, permissions(*)')
+        .in('role_id', roleIds);
 
-    if (error) {
-      console.error('Error fetching user permissions:', error);
+      if (error) {
+        console.error('Error fetching user permissions:', error);
+        return [];
+      }
+
+      const permissions = data
+        ?.map((rp: any) => rp.permissions?.name)
+        .filter(Boolean) || [];
+
+      return [...new Set(permissions)];
+    } catch (error) {
+      console.error('Exception fetching user permissions:', error);
       return [];
     }
-
-    const permissions = data
-      .map((rp: any) => rp.permissions?.name)
-      .filter(Boolean);
-
-    return [...new Set(permissions)];
   },
 
   async hasPermission(userId: string, permissionName: string): Promise<boolean> {
@@ -290,15 +305,19 @@ export const authService = {
   },
 
   async createSession(userId: string, session: Session | null): Promise<void> {
-    if (!session) return;
+    try {
+      if (!session) return;
 
-    const expiresAt = new Date(session.expires_at! * 1000);
+      const expiresAt = new Date(session.expires_at! * 1000);
 
-    await supabase.from('auth_sessions').insert({
-      user_id: userId,
-      token_hash: this.hashToken(session.access_token),
-      expires_at: expiresAt.toISOString(),
-    });
+      await supabase.from('auth_sessions').insert({
+        user_id: userId,
+        token_hash: this.hashToken(session.access_token),
+        expires_at: expiresAt.toISOString(),
+      });
+    } catch (error) {
+      console.error('Error creating session:', error);
+    }
   },
 
   async invalidateSessions(userId: string): Promise<void> {
@@ -316,54 +335,63 @@ export const authService = {
   },
 
   async checkLoginAttempts(email: string): Promise<boolean> {
-    const { data } = await supabase
-      .from('login_attempts')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (!data) return false;
-
-    if (data.locked_until && new Date(data.locked_until) > new Date()) {
-      return true;
-    }
-
-    if (data.attempt_count >= MAX_LOGIN_ATTEMPTS) {
-      const lockUntil = new Date(data.last_attempt_at);
-      lockUntil.setMinutes(lockUntil.getMinutes() + LOCKOUT_DURATION_MINUTES);
-
-      await supabase
+    try {
+      const { data } = await supabase
         .from('login_attempts')
-        .update({ locked_until: lockUntil.toISOString() })
-        .eq('email', email);
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
 
-      return true;
+      if (!data) return false;
+
+      if (data.locked_until && new Date(data.locked_until) > new Date()) {
+        return true;
+      }
+
+      if (data.attempt_count >= MAX_LOGIN_ATTEMPTS) {
+        const lockUntil = new Date(data.last_attempt_at);
+        lockUntil.setMinutes(lockUntil.getMinutes() + LOCKOUT_DURATION_MINUTES);
+
+        await supabase
+          .from('login_attempts')
+          .update({ locked_until: lockUntil.toISOString() })
+          .eq('email', email);
+
+        return true;
+      }
+
+      return false;
+    } catch (error) {
+      console.error('Error checking login attempts:', error);
+      return false;
     }
-
-    return false;
   },
 
   async recordFailedLogin(email: string): Promise<void> {
-    const { data: existing } = await supabase
-      .from('login_attempts')
-      .select('*')
-      .eq('email', email)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
+    try {
+      const { data: existing } = await supabase
         .from('login_attempts')
-        .update({
-          attempt_count: existing.attempt_count + 1,
-          last_attempt_at: new Date().toISOString(),
-        })
-        .eq('email', email);
-    } else {
-      await supabase.from('login_attempts').insert({
-        email,
-        ip_address: 'unknown',
-        attempt_count: 1,
-      });
+        .select('*')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from('login_attempts')
+          .update({
+            attempt_count: existing.attempt_count + 1,
+            last_attempt_at: new Date().toISOString(),
+          })
+          .eq('email', email);
+      } else {
+        await supabase.from('login_attempts').insert({
+          email,
+          ip_address: 'unknown',
+          attempt_count: 1,
+        });
+      }
+    } catch (error) {
+      console.error('Error recording failed login:', error);
     }
   },
 
@@ -375,14 +403,18 @@ export const authService = {
   },
 
   async logAuditEvent(entry: AuditLogEntry): Promise<void> {
-    await supabase.from('auth_audit_log').insert({
-      user_id: entry.user_id,
-      email: entry.email,
-      event_type: entry.event_type,
-      ip_address: entry.ip_address,
-      user_agent: entry.user_agent,
-      metadata: entry.metadata || {},
-    });
+    try {
+      await supabase.from('auth_audit_log').insert({
+        user_id: entry.user_id,
+        email: entry.email,
+        event_type: entry.event_type,
+        ip_address: entry.ip_address,
+        user_agent: entry.user_agent,
+        metadata: entry.metadata || {},
+      });
+    } catch (error) {
+      console.error('Error logging audit event:', error);
+    }
   },
 
   async getAuditLogs(userId?: string, limit = 50): Promise<any[]> {
