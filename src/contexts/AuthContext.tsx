@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const initializeAuth = async () => {
     try {
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Auth initialization timeout')), 5000)
+        setTimeout(() => reject(new Error('Auth initialization timeout')), 10000)
       );
 
       const authPromise = supabase.auth.getSession();
