@@ -69,28 +69,37 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const initializeAuth = async () => {
+    const timeoutId = setTimeout(() => {
+      console.warn('Auth initialization timeout - stopping load');
+      setAuthState((prev) => ({
+        ...prev,
+        isLoading: false,
+      }));
+    }, 3000);
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        setAuthState((prev) => ({
-          ...prev,
-          user: session.user,
-          session,
-          isLoading: true,
-          isAuthenticated: true,
-        }));
-
-        const { profile, roles, permissions } = await loadUserData(session.user);
-
         setAuthState({
           user: session.user,
-          profile,
-          roles,
-          permissions,
+          profile: null,
+          roles: [],
+          permissions: [],
           session,
           isLoading: false,
           isAuthenticated: true,
+        });
+
+        loadUserData(session.user).then(({ profile, roles, permissions }) => {
+          setAuthState((prev) => ({
+            ...prev,
+            profile,
+            roles,
+            permissions,
+          }));
+        }).catch((error) => {
+          console.error('Failed to load user data:', error);
         });
       } else {
         setAuthState({
@@ -114,6 +123,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         isLoading: false,
         isAuthenticated: false,
       });
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
