@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LayoutGrid, List, Plus, SlidersHorizontal } from 'lucide-react';
+import { LayoutGrid, List, Plus, SlidersHorizontal, Search } from 'lucide-react';
 import LibrarySidebar, { FilterState } from '../components/LibrarySidebar';
 import AISearchBar from '../components/AISearchBar';
 import PromptListItem, { Prompt } from '../components/PromptListItem';
