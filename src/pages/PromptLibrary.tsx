@@ -4,6 +4,7 @@ import LibrarySidebar, { FilterState } from '../components/LibrarySidebar';
 import AISearchBar from '../components/AISearchBar';
 import PromptListItem, { Prompt } from '../components/PromptListItem';
 import PromptCardView from '../components/PromptCardView';
+import PromptFormModal from '../components/PromptFormModal';
 
 export default function PromptLibrary() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
@@ -16,6 +17,7 @@ export default function PromptLibrary() {
   });
   const [searchQuery, setSearchQuery] = useState('');
   const [prompts, setPrompts] = useState<Prompt[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const mockPrompts: Prompt[] = [
@@ -205,7 +207,10 @@ export default function PromptLibrary() {
                   </button>
                 </div>
 
-                <button className="px-4 py-2.5 bg-gradient-to-r from-jungle-green to-light-sea-green hover:from-light-sea-green hover:to-jungle-green text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg">
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="px-4 py-2.5 bg-gradient-to-r from-jungle-green to-light-sea-green hover:from-light-sea-green hover:to-jungle-green text-white rounded-lg transition-all duration-200 font-medium text-sm flex items-center gap-2 shadow-md hover:shadow-lg"
+                >
                   <Plus className="w-5 h-5" />
                   New Prompt
                 </button>
@@ -271,6 +276,15 @@ export default function PromptLibrary() {
           </div>
         </main>
       </div>
+
+      <PromptFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={() => {
+          setIsModalOpen(false);
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
